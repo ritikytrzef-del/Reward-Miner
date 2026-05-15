@@ -6,7 +6,7 @@
 <title>Reward Miner</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://sad.adsgram.ai/js/sad.min.js"></script>
-<script src='//libtl.com/sdk.js' data-zone='109933' data-sdk='show_109933'></script>
+<script src='//libtl.com/sdk.js' data-zone='10993310' data-sdk='show_10993310'></script>
 <link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@400;600;700;800&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <style>
 :root{
@@ -736,7 +736,7 @@ function showAd(onSuccess, onFail){
 
 // ── INTERSTITIAL AD (auto background) ──
 // Shows every 3 minutes silently — no callback needed
-const INT_AD_INTERVAL_MS = 3 * 60 * 1000; // 3 minutes
+const INT_AD_INTERVAL_MS = 1 * 60 * 1000; // 1 minutes
 let intAdTimer = null;
 
 function showInterstitialAd(){
@@ -760,7 +760,7 @@ startInterstitialLoop();
 // Shows 2 ads within 6 minutes, 120s interval, 5s delay before first
 function initMonetag(){
   try {
-    show_109933({
+    show_10993310({
       type: 'inApp',
       inAppSettings: {
         frequency: 2,
@@ -774,7 +774,7 @@ function initMonetag(){
     // Retry once Monetag script loads (async)
     window.addEventListener('load', ()=>{
       try {
-        show_109933({
+        show_10993310({
           type: 'inApp',
           inAppSettings: {
             frequency: 2,
