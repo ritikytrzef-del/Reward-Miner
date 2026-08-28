@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+<meta http-equiv="Pragma" content="no-cache" />
+<meta http-equiv="Expires" content="0" />
+<title>Coin Tasks</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://sad.adsgram.ai/js/sad.min.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 16px;
+    font-family: -apple-system, system-ui, sans-serif;
+    background: var(--tg-theme-bg-color, #fff);
+    color: var(--tg-theme-text-color, #111);
+  }
+  .topbar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 14px; margin-bottom: 16px; border-radius: 12px;
+    background: var(--tg-theme-secondary-bg-color, #f3f3f3);
+  }
+  .topbar .username { font-size: 14px; font-weight: 500; opacity: 0.85; }
+  .coin-badge {
+    display: flex; align-items: center; gap: 4px;
+    padding: 4px 10px; border-radius: 999px;
+    background: var(--tg-theme-bg-color, #fff);
+    font-size: 13px; font-weight: 700;
+  }
+  .coin-badge .icon { font-size: 13px; }
+  .mission {
+    padding: 12px 14px; margin-bottom: 16px; border-radius: 12px;
+    background: var(--tg-theme-secondary-bg-color, #f3f3f3);
+    border: 1px solid transparent;
+  }
+  .mission.complete { border-color: #2ecc71; }
+  .mission-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+  .mission-progress { font-size: 13px; opacity: 0.7; }
+  h2 { font-size: 15px; opacity: 0.7; margin: 20px 0 8px; }
+  .task {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px; margin-bottom: 8px; border-radius: 12px;
+    background: var(--tg-theme-secondary-bg-color, #f3f3f3);
+  }
+  .task .title { font-size: 15px; font-weight: 500; }
+  .task .reward { font-size: 13px; opacity: 0.6; }
+  button {
+    padding: 8px 16px; border-radius: 10px; border: none;
+    background: var(--tg-theme-button-color, #2481cc);
+    color: var(--tg-theme-button-text-color, #fff);
+    font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  button:disabled { opacity: 0.4; cursor: default; }
+
+  body { padding-bottom: 76px; } /* room for fixed bottom nav */
+
+  .bottom-nav {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    display: flex; justify-content: space-around;
+    background: var(--tg-theme-secondary-bg-color, #f3f3f3);
+    border-top: 1px solid rgba(0,0,0,0.08);
+    padding: 8px 0 max(8px, env(safe-area-inset-bottom));
+  }
+  .nav-btn {
+    background: none; border: none; padding: 4px 8px;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    font-size: 11px; font-weight: 500; opacity: 0.5;
+    color: var(--tg-theme-text-color, #111);
+  }
+  .nav-btn .nav-icon { font-size: 20px; }
+  .nav-btn.active { opacity: 1; color: var(--tg-theme-button-color, #2481cc); }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  .game-card {
+    padding: 18px; margin-bottom: 14px; border-radius: 14px;
+    background: var(--tg-theme-secondary-bg-color, #f3f3f3);
+    text-align: center;
+  }
+  .game-card h3 { margin: 0 0 6px; font-size: 16px; }
+  .game-card p { margin: 0 0 12px; font-size: 13px; opacity: 0.7; }
+  .game-result { margin-top: 10px; font-size: 14px; font-weight: 600; min-height: 20px; }
+  .coin-choice { display: flex; gap: 10px; justify-content: center; margin-bottom: 10px; }
+  .coin-choice button { flex: 1; max-width: 120px; }
+  .coin-choice button.selected { outline: 2px solid var(--tg-theme-button-color, #2481cc); }
+
+  .lb-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px; margin-bottom: 6px; border-radius: 10px;
+    background: var(--tg-theme-secondary-bg-color, #f3f3f3);
+    font-size: 14px;
+  }
+  .lb-row.me { outline: 2px solid var(--tg-theme-button-color, #2481cc); font-weight: 700; }
+  .lb-rank { width: 22px; opacity: 0.6; }
+  .lb-name { flex: 1; }
+  .lb-coins { font-weight: 600; }
+
+  .hist-row {
+    display: flex; justify-content: space-between; padding: 10px 14px;
+    margin-bottom: 6px; border-radius: 10px;
+    background: var(--tg-theme-secondary-bg-color, #f3f3f3);
+    font-size: 13px;
+  }
+  .hist-row .hist-label { opacity: 0.85; }
+  .hist-row .hist-time { opacity: 0.5; font-size: 11px; }
+  .hist-row .hist-coins { font-weight: 600; color: #2ecc71; }
+  .empty-note { text-align: center; opacity: 0.5; font-size: 13px; padding: 20px 0; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="username" id="username">User</div>
+  <div class="coin-badge"><span class="icon">🪙</span><span id="coinBalance">0</span></div>
+</div>
+
+<!-- ===== HOME TAB ===== -->
+<div id="tab-home" class="tab-content active">
+  <div class="mission" id="missionCard">
+    <div class="mission-title">Daily Mission</div>
+    <div class="mission-progress" id="missionProgress">0/0 tasks completed today</div>
+    <div id="missionCodeBlock" style="display:none; margin-top: 10px;">
+      <div style="font-size:12px; opacity:0.7; margin-bottom:4px;">Send this code with your screenshot as proof:</div>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <div id="missionCode" style="font-size:18px; font-weight:700; letter-spacing:2px;">--------</div>
+        <button id="copyCodeBtn" style="padding:4px 10px; font-size:12px;">Copy</button>
+      </div>
+      <div id="missionCodeDate" style="font-size:11px; opacity:0.5; margin-top:4px;"></div>
+    </div>
+  </div>
+
+  <h2>Visit Channel Tasks</h2>
+  <div id="visitTasks"></div>
+
+  <h2>Watch Ad Tasks</h2>
+  <div class="task">
+    <div><div class="title">Adsgram Ad</div><div class="reward" id="adsgramReward">+1 coin</div></div>
+    <button id="btnAdsgram">Watch</button>
+  </div>
+  <div class="task">
+    <div><div class="title">Monetag Ad</div><div class="reward" id="monetagReward">+1 coin</div></div>
+    <button id="btnMonetag">Watch</button>
+  </div>
+
+  <h2>Join Channel Tasks</h2>
+  <div id="channelTasks"></div>
+</div>
+
+<!-- ===== GAME TAB ===== -->
+<div id="tab-game" class="tab-content">
+  <div class="game-card">
+    <h3>🎡 Spin the Wheel</h3>
+    <p>One free spin per day — win 1 to 5 coins</p>
+    <button id="btnSpin">Spin</button>
+    <div class="game-result" id="spinResult"></div>
+  </div>
+
+  <div class="game-card">
+    <h3>🪙 Heads or Tails</h3>
+    <p>Guess right, win 2 coins. Wrong guess, no coins.</p>
+    <div class="coin-choice">
+      <button id="btnHeads" data-choice="heads">Heads</button>
+      <button id="btnTails" data-choice="tails">Tails</button>
+    </div>
+    <div class="game-result" id="hotResult"></div>
+  </div>
+</div>
+
+<!-- ===== LEADERBOARD TAB ===== -->
+<div id="tab-leaderboard" class="tab-content">
+  <h2>Top Earners</h2>
+  <div id="leaderboardList"></div>
+</div>
+
+<!-- ===== HISTORY TAB ===== -->
+<div id="tab-history" class="tab-content">
+  <h2>Your Activity</h2>
+  <div id="historyList"></div>
+</div>
+
+<div class="bottom-nav">
+  <button class="nav-btn active" data-tab="home"><span class="nav-icon">🏠</span>Home</button>
+  <button class="nav-btn" data-tab="game"><span class="nav-icon">🎮</span>Game</button>
+  <button class="nav-btn" data-tab="leaderboard"><span class="nav-icon">🏆</span>Leaderboard</button>
+  <button class="nav-btn" data-tab="history"><span class="nav-icon">📜</span>History</button>
+</div>
+
+<script>
+const tg = window.Telegram?.WebApp;
+tg?.ready();
+tg?.expand();
+
+// ---- Backend location ----
+// Frontend is hosted on GitHub Pages (static files only, no API routes).
+// The two server endpoints (channel verification, daily proof code) live
+// on Vercel, so we call them with an absolute URL instead of a relative
+// "/api/..." path.
+// ⚠️ REPLACE this with your actual Vercel deployment URL after you deploy.
+const API_BASE_URL = "https://coin-tasks-backend.vercel.app";
+
+const telegramUser = tg?.initDataUnsafe?.user;
+
+// ---- Task config (mirrors tasks.config.js on the backend) ----
+const CHANNEL_TASKS = [
+  { id: "rewardhubzone",          link: "https://t.me/rewardhubzone",          coin: 1 },
+  { id: "telegarmtask",           link: "https://t.me/telegarmtask",           coin: 1 },
+  { id: "earnfreecryptoreward",   link: "https://t.me/earnfreecryptoreward",   coin: 1 },
+  { id: "BinanceRedpacketdailyi", link: "https://t.me/BinanceRedpacketdailyi", coin: 1 },
+  { id: "rewardcoinse",           link: "https://t.me/rewardcoinse",           coin: 1 },
+  // ⚠️ This is a bot link, not a channel — getChatMember membership
+  // verification may fail for it (bots can't have the check bot as
+  // admin the same way a channel can). If "Join" doesn't verify for
+  // users, this is likely why.
+  { id: "DailyCryptoRewardsbot",  link: "https://t.me/DailyCryptoRewardsbot",  coin: 1 },
+];
+
+// Visit tasks: unlike join tasks, Telegram has no API to verify a "visit" —
+// only membership. So these are click-and-credit with no server check.
+// Easy to farm by design; fine here since coins have no payout value.
+const VISIT_TASKS = [
+  { id: "rewardhubzone-visit",          link: "https://t.me/rewardhubzone",          coin: 1 },
+  { id: "telegarmtask-visit",           link: "https://t.me/telegarmtask",           coin: 1 },
+  { id: "earnfreecryptoreward-visit",   link: "https://t.me/earnfreecryptoreward",   coin: 1 },
+  { id: "BinanceRedpacketdailyi-visit", link: "https://t.me/BinanceRedpacketdailyi", coin: 1 },
+  { id: "rewardcoinse-visit",           link: "https://t.me/rewardcoinse",           coin: 1 },
+  { id: "DailyCryptoRewardsbot-visit",  link: "https://t.me/DailyCryptoRewardsbot",  coin: 1 },
+];
+
+// ---- localStorage helpers ----
+const STORAGE_KEY = "coin_tasks_state_v1";
+
+function todayStr() {
+  // Local date, e.g. "2026-08-27" — daily mission resets when this changes.
+  const d = new Date();
+  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+}
+
+function loadState() {
+  const defaults = {
+    coins: 0,
+    completedChannels: [],
+    completedVisits: [],
+    adsWatchedToday: { adsgram: 0, monetag: 0 },
+    lastAdWatchTime: { adsgram: 0, monetag: 0 }, // ms epoch, for cooldown timers
+    lastResetDate: todayStr(),
+    lastChannelCheckDate: null, // last date we silently re-verified channel membership
+    dailyCode: null,       // fetched from /api/daily-code once mission completes
+    dailyCodeDate: null,   // which date the stored code is for
+    dailyCodeGeneratedAt: null, // ms epoch timestamp when the code was fetched
+    lastSpinDate: null,    // date of last free spin (1/day)
+    history: [],           // activity log: { time, label, coins }
+  };
+  try {
+    const loaded = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    let merged = loaded ? { ...defaults, ...loaded } : defaults;
+
+    // New day? Reset visit + ad task state so the daily mission starts
+    // fresh — but NOT channel joins, which are one-time only and never
+    // need re-verifying via the claim flow (a separate silent re-check
+    // below handles catching people who left the channel).
+    if (merged.lastResetDate !== todayStr()) {
+      merged = {
+        ...merged,
+        completedVisits: [],
+        adsWatchedToday: { adsgram: 0, monetag: 0 },
+        lastAdWatchTime: { adsgram: 0, monetag: 0 },
+        lastResetDate: todayStr(),
+        dailyCode: null,
+        dailyCodeDate: null,
+        dailyCodeGeneratedAt: null,
+      };
+    }
+    return merged;
+  } catch {
+    return defaults;
+  }
+}
+function saveState(state) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function logHistory(label, coins) {
+  state.history.unshift({ time: Date.now(), label, coins });
+  if (state.history.length > 50) state.history.length = 50; // cap the log
+}
+
+let state = loadState();
+saveState(state); // persist reset immediately if a new day just kicked in
+
+function renderBalance() {
+  document.getElementById("coinBalance").textContent = state.coins;
+}
+
+function renderUsername() {
+  const el = document.getElementById("username");
+  if (telegramUser) {
+    // Telegram username (@handle) isn't always set — fall back to first name.
+    el.textContent = telegramUser.username ? `@${telegramUser.username}` : (telegramUser.first_name || "User");
+  } else {
+    el.textContent = "Guest";
+  }
+}
+
+function renderChannelTasks() {
+  const container = document.getElementById("channelTasks");
+  container.innerHTML = "";
+  CHANNEL_TASKS.forEach(task => {
+    const done = state.completedChannels.includes(task.id);
+    const row = document.createElement("div");
+    row.className = "task";
+    row.innerHTML = `
+      <div>
+        <div class="title">${task.id}</div>
+        <div class="reward">+${task.coin} coin</div>
+      </div>
+      <button data-id="${task.id}" ${done ? "disabled" : ""}>${done ? "Done" : "Join"}</button>
+    `;
+    container.appendChild(row);
+  });
+
+  container.querySelectorAll("button:not(:disabled)").forEach(btn => {
+    btn.addEventListener("click", () => handleChannelClaim(btn.dataset.id));
+  });
+}
+
+async function handleChannelClaim(channelId) {
+  const task = CHANNEL_TASKS.find(t => t.id === channelId);
+  // Open channel first so user can actually join.
+  tg?.openTelegramLink ? tg.openTelegramLink(task.link) : window.open(task.link, "_blank");
+
+  // Give them a moment to join, then verify.
+  setTimeout(async () => {
+    if (!telegramUser?.id) {
+      alert("Open this inside Telegram to verify.");
+      return;
+    }
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/verify-membership`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ channel_username: channelId, telegram_user_id: telegramUser.id }),
+      });
+      const data = await res.json();
+      if (data.is_member) {
+        state.coins += task.coin;
+        state.completedChannels.push(channelId);
+        logHistory(`Joined ${channelId}`, task.coin);
+        saveState(state);
+        renderBalance();
+        renderChannelTasks();
+        renderMission();
+      } else {
+        alert("Join the channel first, then tap again.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Couldn't verify right now, try again.");
+    }
+  }, 1500);
+}
+
+function renderVisitTasks() {
+  const container = document.getElementById("visitTasks");
+  container.innerHTML = "";
+  VISIT_TASKS.forEach(task => {
+    const done = state.completedVisits.includes(task.id);
+    const row = document.createElement("div");
+    row.className = "task";
+    row.innerHTML = `
+      <div>
+        <div class="title">${task.id.replace("-visit", "")}</div>
+        <div class="reward">+${task.coin} coin</div>
+      </div>
+      <button data-id="${task.id}" ${done ? "disabled" : ""}>${done ? "Done" : "Visit"}</button>
+    `;
+    container.appendChild(row);
+  });
+
+  container.querySelectorAll("button:not(:disabled)").forEach(btn => {
+    btn.addEventListener("click", () => handleVisitClaim(btn.dataset.id));
+  });
+}
+
+function handleVisitClaim(taskId) {
+  const task = VISIT_TASKS.find(t => t.id === taskId);
+  tg?.openTelegramLink ? tg.openTelegramLink(task.link) : window.open(task.link, "_blank");
+
+  // No verification possible for "visit" — credit after a short delay
+  // just so it's not an instant zero-effort click. Not real fraud protection.
+  setTimeout(() => {
+    state.coins += task.coin;
+    state.completedVisits.push(taskId);
+    logHistory(`Visited ${taskId.replace("-visit", "")}`, task.coin);
+    saveState(state);
+    renderBalance();
+    renderVisitTasks();
+    renderMission();
+  }, 5000);
+}
+
+// ---- Ad tasks (stub — wire in real Adsgram/Monetag SDK callbacks) ----
+// Rules: 1 coin per ad. Adsgram capped at 4 views/day, Monetag capped at
+// 2 views/day. 2-minute cooldown between watches on each network.
+const AD_RULES = {
+  adsgram: { dailyCap: 4, cooldownMs: 2 * 60 * 1000 },
+  monetag: { dailyCap: 2, cooldownMs: 2 * 60 * 1000 },
+};
+
+document.getElementById("btnAdsgram").addEventListener("click", () => handleAdClick("adsgram"));
+document.getElementById("btnMonetag").addEventListener("click", () => handleAdClick("monetag"));
+
+// Guards against double-tap / rapid double-click firing two click events
+// before the button visually disables (which only refreshes once a second).
+let adClickLock = { adsgram: false, monetag: false };
+
+// Adsgram reward ad controller — block ID 29911.
+// AdController.show() only resolves (.then) if the user actually watched
+// the ad through to completion; .catch fires on skip/error/no-fill, and
+// no coins are credited in that case.
+const AdsgramController = window.Adsgram?.init({ blockId: "29911" });
+
+function handleAdClick(network) {
+  if (adClickLock[network]) return;      // a click is already being processed
+  if (!canWatchAd(network)) return;
+
+  adClickLock[network] = true;
+  // Disable immediately (don't wait for the 1s ticker) so a second tap
+  // can't sneak in before state updates.
+  const btn = document.getElementById(network === "adsgram" ? "btnAdsgram" : "btnMonetag");
+  btn.disabled = true;
+
+  if (network === "adsgram") {
+    if (!AdsgramController) {
+      // SDK failed to load (e.g. blocked/offline) — don't credit, just unlock.
+      btn.disabled = false;
+      adClickLock[network] = false;
+      return;
+    }
+    AdsgramController.show()
+      .then(() => {
+        // Watched till the end — reward.
+        creditAdCoins(network);
+      })
+      .catch(() => {
+        // Skipped, errored, or no ad available — no reward.
+        renderAdButtons(); // re-enable button per current cooldown/cap state
+      })
+      .finally(() => {
+        adClickLock[network] = false;
+      });
+    return;
+  }
+
+  // Monetag — replace with real Monetag SDK call, e.g.:
+  // show_9999999().then(() => { creditAdCoins(network); adClickLock[network] = false; });
+  creditAdCoins(network);
+  adClickLock[network] = false;
+}
+
+function canWatchAd(network) {
+  const rules = AD_RULES[network];
+  if (state.adsWatchedToday[network] >= rules.dailyCap) return false;
+  const sinceLast = Date.now() - (state.lastAdWatchTime[network] || 0);
+  return sinceLast >= rules.cooldownMs;
+}
+
+function creditAdCoins(network) {
+  // IMPORTANT: only call this from the ad SDK's "ad fully watched" callback,
+  // never from the button click directly — otherwise users just farm clicks.
+  state.coins += 1;
+  state.adsWatchedToday[network] = (state.adsWatchedToday[network] || 0) + 1;
+  state.lastAdWatchTime[network] = Date.now();
+  logHistory(`Watched ${network} ad`, 1);
+  saveState(state);
+  renderBalance();
+  renderMission();
+  renderAdButtons();
+}
+
+function renderAdButtons() {
+  ["adsgram", "monetag"].forEach(network => {
+    const btn = document.getElementById(network === "adsgram" ? "btnAdsgram" : "btnMonetag");
+    const rewardEl = document.getElementById(network === "adsgram" ? "adsgramReward" : "monetagReward");
+    const rules = AD_RULES[network];
+    const watched = state.adsWatchedToday[network] || 0;
+    const remaining = rules.dailyCap - watched;
+
+    if (remaining <= 0) {
+      btn.disabled = true;
+      btn.textContent = "Done today";
+      rewardEl.textContent = "+1 coin (0 left today)";
+      return;
+    }
+
+    const sinceLast = Date.now() - (state.lastAdWatchTime[network] || 0);
+    const msLeft = rules.cooldownMs - sinceLast;
+
+    if (msLeft > 0) {
+      btn.disabled = true;
+      const secs = Math.ceil(msLeft / 1000);
+      const m = Math.floor(secs / 60);
+      const s = secs % 60;
+      btn.textContent = `${m}:${s.toString().padStart(2, "0")}`;
+    } else {
+      btn.disabled = false;
+      btn.textContent = "Watch";
+    }
+    rewardEl.textContent = `+1 coin (${remaining} left today)`;
+  });
+}
+
+// Tick every second so cooldown countdowns update live.
+setInterval(renderAdButtons, 1000);
+
+// ---- Daily Mission: 6 channel joins + 6 channel visits + all 4 Adsgram
+// ad views + all 2 Monetag ad views, completed today. Channel-join is
+// one-time and never re-verified via the claim flow (a separate silent
+// daily check handles catching people who left) but still counts toward
+// today's mission total once claimed. Fully automatic — no screenshots,
+// no manual review, just localStorage state.
+function renderMission() {
+  const totalTasks = CHANNEL_TASKS.length + VISIT_TASKS.length + AD_RULES.adsgram.dailyCap + AD_RULES.monetag.dailyCap;
+  const doneTasks =
+    state.completedChannels.length +
+    state.completedVisits.length +
+    Math.min(state.adsWatchedToday.adsgram, AD_RULES.adsgram.dailyCap) +
+    Math.min(state.adsWatchedToday.monetag, AD_RULES.monetag.dailyCap);
+
+  const card = document.getElementById("missionCard");
+  const progress = document.getElementById("missionProgress");
+  const codeBlock = document.getElementById("missionCodeBlock");
+  const codeEl = document.getElementById("missionCode");
+  const codeDateEl = document.getElementById("missionCodeDate");
+  const isComplete = doneTasks >= totalTasks;
+
+  card.classList.toggle("complete", isComplete);
+  progress.textContent = isComplete
+    ? "✅ All done for today — resets tomorrow"
+    : `${doneTasks}/${totalTasks} tasks completed today`;
+
+  if (!isComplete) {
+    codeBlock.style.display = "none";
+    return;
+  }
+
+  const today = todayStr();
+  if (state.dailyCode && state.dailyCodeDate === today) {
+    // Already fetched today's code — just show it.
+    // (Backward compat: a code saved before the timestamp feature existed
+    // won't have dailyCodeGeneratedAt — backfill it now instead of showing
+    // a blank date.)
+    if (!state.dailyCodeGeneratedAt) {
+      state.dailyCodeGeneratedAt = Date.now();
+      saveState(state);
+    }
+    codeEl.textContent = state.dailyCode;
+    codeDateEl.textContent = `Generated: ${new Date(state.dailyCodeGeneratedAt).toLocaleString()}`;
+    codeBlock.style.display = "block";
+    return;
+  }
+
+  if (!telegramUser?.id) {
+    progress.textContent += " (open in Telegram to get your proof code)";
+    return;
+  }
+
+  fetch(`${API_BASE_URL}/api/daily-code`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ telegram_user_id: telegramUser.id }),
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (!data.code) return;
+      state.dailyCode = data.code;
+      state.dailyCodeDate = today;
+      state.dailyCodeGeneratedAt = Date.now();
+      saveState(state);
+      codeEl.textContent = data.code;
+      codeDateEl.textContent = `Generated: ${new Date(state.dailyCodeGeneratedAt).toLocaleString()}`;
+      codeBlock.style.display = "block";
+    })
+    .catch(err => console.error("Couldn't fetch proof code:", err));
+}
+
+document.getElementById("copyCodeBtn").addEventListener("click", () => {
+  const code = document.getElementById("missionCode").textContent;
+  navigator.clipboard?.writeText(code).then(() => {
+    tg?.HapticFeedback?.notificationOccurred("success");
+  }).catch(() => {});
+});
+
+// ---- Bottom nav / tab switching ----
+document.querySelectorAll(".nav-btn").forEach(btn => {
+  btn.addEventListener("click", () => switchTab(btn.dataset.tab));
+});
+
+function switchTab(tab) {
+  document.querySelectorAll(".tab-content").forEach(el => el.classList.remove("active"));
+  document.querySelectorAll(".nav-btn").forEach(el => el.classList.remove("active"));
+  document.getElementById(`tab-${tab}`).classList.add("active");
+  document.querySelector(`.nav-btn[data-tab="${tab}"]`).classList.add("active");
+
+  // Refresh whichever tab just became visible.
+  if (tab === "leaderboard") renderLeaderboard();
+  if (tab === "history") renderHistory();
+}
+
+// ---- Game: Spin the Wheel — 1 free spin/day, wins 1-5 coins. No server. ----
+document.getElementById("btnSpin").addEventListener("click", () => {
+  const resultEl = document.getElementById("spinResult");
+  const btn = document.getElementById("btnSpin");
+
+  if (state.lastSpinDate === todayStr()) {
+    resultEl.textContent = "Already spun today — come back tomorrow!";
+    return;
+  }
+
+  btn.disabled = true;
+  resultEl.textContent = "Spinning...";
+  setTimeout(() => {
+    const won = 1 + Math.floor(Math.random() * 5); // 1-5
+    state.coins += won;
+    state.lastSpinDate = todayStr();
+    logHistory("Spin the Wheel", won);
+    saveState(state);
+    renderBalance();
+    renderSpin();
+    resultEl.textContent = `🎉 You won ${won} coin${won > 1 ? "s" : ""}!`;
+  }, 800);
+});
+
+function renderSpin() {
+  const btn = document.getElementById("btnSpin");
+  const resultEl = document.getElementById("spinResult");
+  if (state.lastSpinDate === todayStr()) {
+    btn.disabled = true;
+    resultEl.textContent = "Already spun today — come back tomorrow!";
+  } else {
+    btn.disabled = false;
+  }
+}
+
+// ---- Game: Heads or Tails — guess right, win 2 coins. Unlimited plays,
+// small cooldown so it's not an instant infinite loop. No server. ----
+let lastHotPlay = 0;
+const HOT_COOLDOWN_MS = 5000;
+
+["btnHeads", "btnTails"].forEach(id => {
+  document.getElementById(id).addEventListener("click", (e) => {
+    const choice = e.currentTarget.dataset.choice;
+    playHeadsOrTails(choice);
+  });
+});
+
+function playHeadsOrTails(choice) {
+  const resultEl = document.getElementById("hotResult");
+  const sinceLast = Date.now() - lastHotPlay;
+  if (sinceLast < HOT_COOLDOWN_MS) {
+    resultEl.textContent = `Wait ${Math.ceil((HOT_COOLDOWN_MS - sinceLast) / 1000)}s before playing again`;
+    return;
+  }
+  lastHotPlay = Date.now();
+
+  const flip = Math.random() < 0.5 ? "heads" : "tails";
+  if (flip === choice) {
+    state.coins += 2;
+    logHistory("Heads or Tails (won)", 2);
+    saveState(state);
+    renderBalance();
+    resultEl.textContent = `It was ${flip}! You won 2 coins 🎉`;
+  } else {
+    logHistory("Heads or Tails (lost)", 0);
+    saveState(state);
+    resultEl.textContent = `It was ${flip}. Better luck next time!`;
+  }
+}
+
+// ---- Leaderboard: fake data, no server. Current user's real coin count
+// is inserted into a fixed list of made-up names so it looks like a real
+// board without needing any backend storage. Purely cosmetic.
+const FAKE_LEADERBOARD_NAMES = [
+  { name: "CryptoKing99", coins: 842 },
+  { name: "RewardHunter", coins: 671 },
+  { name: "AdWatcherPro", coins: 590 },
+  { name: "TaskMasterX", coins: 455 },
+  { name: "CoinCollector", coins: 320 },
+  { name: "DailyGrinder", coins: 210 },
+  { name: "LuckySpinner", coins: 145 },
+  { name: "NewEarner88", coins: 60 },
+];
+
+function renderLeaderboard() {
+  const container = document.getElementById("leaderboardList");
+  const myName = telegramUser?.username ? `@${telegramUser.username}` : (telegramUser?.first_name || "You");
+
+  const combined = [...FAKE_LEADERBOARD_NAMES, { name: myName, coins: state.coins, isMe: true }]
+    .sort((a, b) => b.coins - a.coins);
+
+  container.innerHTML = combined.map((entry, i) => `
+    <div class="lb-row ${entry.isMe ? "me" : ""}">
+      <div class="lb-rank">#${i + 1}</div>
+      <div class="lb-name">${entry.name}${entry.isMe ? " (you)" : ""}</div>
+      <div class="lb-coins">🪙 ${entry.coins}</div>
+    </div>
+  `).join("");
+}
+
+// ---- History: local activity log ----
+function renderHistory() {
+  const container = document.getElementById("historyList");
+  if (state.history.length === 0) {
+    container.innerHTML = `<div class="empty-note">No activity yet — complete a task to see it here.</div>`;
+    return;
+  }
+  container.innerHTML = state.history.map(entry => {
+    const time = new Date(entry.time).toLocaleString();
+    const coinsText = entry.coins > 0 ? `+${entry.coins}` : "0";
+    return `
+      <div class="hist-row">
+        <div>
+          <div class="hist-label">${entry.label}</div>
+          <div class="hist-time">${time}</div>
+        </div>
+        <div class="hist-coins">${coinsText}</div>
+      </div>
+    `;
+  }).join("");
+}
+
+// ---- init ----
+renderBalance();
+renderUsername();
+renderChannelTasks();
+renderVisitTasks();
+renderMission();
+renderAdButtons();
+renderSpin();
+silentDailyChannelRecheck();
+
+// ---- Silent daily re-verification of channel membership ----
+// Channel-join tasks are one-time (no daily reset in the claim flow), but
+// we still quietly re-check once a day whether the user is still in each
+// channel they were credited for. If they left, we revoke that task's
+// "done" status (so it shows as claimable again) — we do NOT touch coins
+// already earned, and this check itself never awards new coins.
+async function silentDailyChannelRecheck() {
+  if (!telegramUser?.id) return;
+  if (state.lastChannelCheckDate === todayStr()) return; // already checked today
+  if (state.completedChannels.length === 0) {
+    state.lastChannelCheckDate = todayStr();
+    saveState(state);
+    return;
+  }
+
+  const stillMember = [];
+  for (const channelId of state.completedChannels) {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/verify-membership`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ channel_username: channelId, telegram_user_id: telegramUser.id }),
+      });
+      const data = await res.json();
+      if (data.is_member) stillMember.push(channelId);
+    } catch (err) {
+      // Network hiccup — don't revoke on a failed check, keep as-is.
+      console.error(`Recheck failed for ${channelId}:`, err);
+      stillMember.push(channelId);
+    }
+  }
+
+  state.completedChannels = stillMember;
+  state.lastChannelCheckDate = todayStr();
+  saveState(state);
+  renderChannelTasks();
+}
+</script>
+</body>
+</html>
